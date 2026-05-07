@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Batismo Cloud 2026</title>
+
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#0f9d58">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="apple-touch-icon" href="icon-192.png">
+
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
+
+<style>
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  body{
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    background: linear-gradient(135deg, #000, #0f9d58);
+    background-attachment: fixed; min-height: 100vh;
+    padding: 10px; color: white; display: flex; justify-content: center; overflow: hidden;
+  }
+  .container{
+    width: 100%; max-width: 600px; background: rgba(255,255,255,0.08);
+    backdrop-filter: blur(15px); -webkit-backdrop-filter: blur(15px);
+    padding: 15px; border-radius: 20px;
+    display: flex; flex-direction: column; height: 92dvh; max-height: 95vh;
+    border: 1px solid rgba(255,255,255,0.1);
+  }
+  #tela-login { display: flex; flex-direction: column; gap: 15px; justify-content: center; height: 100%; }
+  #tela-app { display: none; flex-direction: column; height: 100%; overflow: hidden; }
+  
+  input { 
+    width: 100%; padding: 12px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.2); 
+    background: rgba(0,0,0,0.4); color: white; font-size: 16px; margin-bottom: 5px;
+  }
+  button { 
+    padding: 12px; border-radius: 10px; border: none; cursor: pointer; font-weight: bold;
+    background: #0f9d58; color: white; transition: 0.2s;
+  }
+  button:active { transform: scale(0.96); }
+
+  .resumo-financeiro { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px; }
+  .resumo-card { background: rgba(0,0,0,0.3); padding: 10px; border-radius: 10px; text-align: center; }
+  
+  .abas { display: flex; gap: 8px; margin-bottom: 10px; }
+  .aba { flex: 1; padding: 10px; text-align: center; background: rgba(255,255,255,0.05); border-radius: 10px; font-size: 14px; cursor: pointer;}
+  .aba.ativa { background: #0f9d58; font-weight: bold; }
+
+  #lista { overflow-y: auto; flex-grow: 1; padding-bottom: 20px; }
+  .lista-item { background: rgba(255,255,255,0.08); margin-bottom: 10px; border-radius: 12px; border-left: 5px solid #ffd700; }
+  .acordeao-header { padding: 15px; display: flex; justify-content: space-between; align-items: center; }
+  .acordeao-conteudo { display: none; padding: 15px; background: rgba(0,0,0,0.2); border-bottom-left-radius: 12px; border-bottom-right-radius: 12px; }
+  .acordeao-conteudo.ativo { display: block; }
+  
+  .btn-excluir { background: rgba(255, 68, 68, 0.15); color: #ff4444; border: 1px solid #ff4444; margin-top: 10px; width: 100%; padding: 8px; }
+  label { font-size: 11px; opacity: 0.7; margin-left: 5px; text-transform: uppercase; }
+</style>
+</head>
+<body>
+
+<div class="container">
+  <div id="tela-login">
+    <h1 style="text-align:center">Batismo Cloud</h1>
+    <input type="email" id="login-email" placeholder="E-mail">
+    <input type="password" id="login-senha" placeholder="Senha (mín. 6 dígitos)">
+    <button onclick="fazerLogin()">Entrar / Criar Conta</button>
+    <p id="msg-erro" style="color:#ff8888; font-size:12px; text-align:center"></p>
+  </div>
+
+  <div id="tela-app">
+    <div style="display:flex; justify-content: space-between; align-items:center; margin-bottom:10px">
+        <span id="user-display" style="font-size:10px; opacity:0.5"></span>
+        <button onclick="fazerLogout()" style="padding:4px 10px; font-size:10px; background:#333">Sair</button>
+    </div>
+
+    <div class="resumo-financeiro">
+        <div class="resumo-card"><small>PAGO</small><br><strong id="total-pago">R$ 0,00</strong></div>
+        <div class="resumo-card"><small>FALTA</small><br><strong id="total-falta" style="color: #ffd700;">R$ 0,00</strong></div>
+    </div>
+
+    <input type="text" id="busca" placeholder="🔍 Buscar nome..." oninput="renderizar()">
+
+    <div id="form-pessoa" style="display:none; background:rgba(255,255,255,0.1); padding:15px; border-radius:15px; margin-bottom:15px; flex-direction: column; gap:5px">
+        <input type="text" id="nome" placeholder="Nome">
+        <input type="number" id="valorTotal" placeholder="Valor Total">
+        <button onclick="adicionarPessoa()" style="background: #ffd700; color: #000">Confirmar</button>
+    </div>
+    
+    <button onclick="document.getElementById('form-pessoa').style.display='flex'">+ Nova Pessoa</button>
+
+    <div class="abas" style="margin-top:15px">
+      <div class="aba ativa" id="aba-pendentes" onclick="mudarAba('pendentes')">Pendentes</div>
+      <div class="aba" id="aba-quitados" onclick="mudarAba('quitados')">Quitados</div>
+    </div>
+
+    <div id="lista"></div>
+  </div>
+</div>
+
+<script>
+// CONFIG FIREBASE (Substitua se necessário, mas mantive os seus)
+const firebaseConfig = {
+  apiKey: "AIzaSyAlETv7ctbhblHbdaPWWyReDAC88OK3TKg",
+  authDomain: "teste-batismo-43789.firebaseapp.com",
+  projectId: "teste-batismo-43789",
+  storageBucket: "teste-batismo-43789.firebasestorage.app",
+  messagingSenderId: "448494420420",
+  appId: "1:448494420420:web:da0ea7a634b7f998f1a491"
+};
+
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+const db = firebase.database();
+
+let pessoas = [];
+let abaAtiva = 'pendentes';
+let usuarioAtual = null;
+
+// AUTH
+auth.onAuthStateChanged(user => {
+  if (user) {
+    usuarioAtual = user;
+    document.getElementById('tela-login').style.display = 'none';
+    document.getElementById('tela-app').style.display = 'flex';
+    document.getElementById('user-display').innerText = user.email;
+    carregarDadosNuvem();
+  } else {
+    document.getElementById('tela-login').style.display = 'flex';
+    document.getElementById('tela-app').style.display = 'none';
+  }
+});
+
+function fazerLogin() {
+  const email = document.getElementById('login-email').value;
+  const senha = document.getElementById('login-senha').value;
+  if(senha.length < 6) return alert("Senha curta demais!");
+
+  auth.signInWithEmailAndPassword(email, senha).catch(err => {
+    if(err.code === 'auth/user-not-found' || err.code === 'auth/invalid-credential') {
+        auth.createUserWithEmailAndPassword(email, senha).catch(e => alert(e.message));
+    }
+  });
+}
+
+function fazerLogout() { auth.signOut(); }
+
+// DATA
+function carregarDadosNuvem() {
+  db.ref('usuarios/' + usuarioAtual.uid).on('value', snap => {
+    const data = snap.val();
+    pessoas = data ? (data.pessoas || []) : [];
+    renderizar();
+  });
+}
+
+function salvarNuvem() {
+  if(usuarioAtual) db.ref('usuarios/' + usuarioAtual.uid).set({ pessoas });
+}
+
+// UI
+function renderizar() {
+  const lista = document.getElementById('lista');
+  const busca = document.getElementById('busca').value.toLowerCase();
+  lista.innerHTML = '';
+  let pago = 0, falta = 0;
+
+  pessoas.forEach((p, idx) => {
+    const pTotal = Number(p.total || 0);
+    const pPago = Number(p.pago || 0);
+    const pFalta = pTotal - pPago;
+    const quitado = pFalta <= 0;
+
+    pago += pPago;
+    falta += (pFalta > 0 ? pFalta : 0);
+
+    if ((abaAtiva === 'pendentes' && quitado) || (abaAtiva === 'quitados' && !quitado)) return;
+    if (p.nome && !p.nome.toLowerCase().includes(busca)) return;
+
+    lista.innerHTML += `
+      <div class="lista-item">
+        <div class="acordeao-header" onclick="toggleAcordeao(${idx})">
+          <span>${p.nome}</span>
+          <strong>${quitado ? '✅' : 'R$ '+pFalta.toFixed(2)}</strong>
+        </div>
+        <div class="acordeao-conteudo" id="cont-${idx}">
+          <label>Total:</label>
+          <input type="number" value="${pTotal}" onchange="editar(${idx}, 'total', this.value)">
+          <label>Pago:</label>
+          <input type="number" value="${pPago}" onchange="editar(${idx}, 'pago', this.value)">
+          <button class="btn-excluir" onclick="remover(${idx})">Remover</button>
+        </div>
+      </div>`;
+  });
+
+  document.getElementById('total-pago').innerText = `R$ ${pago.toFixed(2)}`;
+  document.getElementById('total-falta').innerText = `R$ ${falta.toFixed(2)}`;
+}
+
+function adicionarPessoa() {
+  const n = document.getElementById('nome').value;
+  const t = Number(document.getElementById('valorTotal').value);
+  if(!n || t <= 0) return;
+  pessoas.push({nome: n, total: t, pago: 0});
+  salvarNuvem();
+  document.getElementById('form-pessoa').style.display = 'none';
+  document.getElementById('nome').value = ''; document.getElementById('valorTotal').value = '';
+}
+
+function editar(idx, campo, valor) {
+  pessoas[idx][campo] = Number(valor);
+  salvarNuvem();
+}
+
+function remover(idx) {
+  if(confirm("Excluir?")) { pessoas.splice(idx, 1); salvarNuvem(); }
+}
+
+function toggleAcordeao(idx) {
+  const el = document.getElementById(`cont-${idx}`);
+  const status = el.classList.contains('ativo');
+  document.querySelectorAll('.acordeao-conteudo').forEach(c => c.classList.remove('ativo'));
+  if(!status) el.classList.add('ativo');
+}
+
+function mudarAba(aba) {
+  abaAtiva = aba;
+  document.getElementById('aba-pendentes').classList.toggle('ativa', aba==='pendentes');
+  document.getElementById('aba-quitados').classList.toggle('ativa', aba==='quitados');
+  renderizar();
+}
+
+// REGISTRO DO SERVICE WORKER (PWA)
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('sw.js').catch(err => console.log(err));
+  });
+}
+</script>
+</body>
+</html>

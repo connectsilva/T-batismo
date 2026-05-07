@@ -1,0 +1,21 @@
+{
+  "name": "Batismo Cloud 2026",
+  "short_name": "Batismo",
+  "description": "Sistema de Gestão de Batismo",
+  "start_url": "index.html",
+  "display": "standalone",
+  "background_color": "#000000",
+  "theme_color": "#0f9d58",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
